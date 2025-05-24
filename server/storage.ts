@@ -1,8 +1,11 @@
 import { users, products, type User, type InsertUser, type Product, type InsertProduct } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
 
 const MemoryStore = createMemoryStore(session);
+const scryptAsync = promisify(scrypt);
 
 // modify the interface with any CRUD methods
 // you might need
@@ -19,7 +22,7 @@ export interface IStorage {
   deleteProduct(id: number, userId: number): Promise<boolean>;
   getProductBySku(sku: string, userId: number): Promise<Product | undefined>;
   
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 }
 
 export class MemStorage implements IStorage {
@@ -27,7 +30,7 @@ export class MemStorage implements IStorage {
   private products: Map<number, Product>;
   private currentUserId: number;
   private currentProductId: number;
-  public sessionStore: session.SessionStore;
+  public sessionStore: any;
 
   constructor() {
     this.users = new Map();
@@ -42,11 +45,18 @@ export class MemStorage implements IStorage {
     this.initializeSampleData();
   }
 
+  private async hashPassword(password: string) {
+    const salt = randomBytes(16).toString("hex");
+    const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${buf.toString("hex")}.${salt}`;
+  }
+
   private async initializeSampleData() {
-    // Create a demo user
+    // Create a demo user with properly hashed password
+    const hashedPassword = await this.hashPassword("demo123");
     const demoUser = await this.createUser({
       username: "demo@inventorypro.com",
-      password: "demo123",
+      password: hashedPassword,
     });
 
     // Create sample products for the demo user
@@ -55,48 +65,48 @@ export class MemStorage implements IStorage {
         name: "MacBook Pro 14-inch",
         sku: "MBP14-001",
         category: "Electronics",
-        purchasePrice: "1999.99",
-        sellingPrice: "2399.99",
+        purchasePrice: 1999.99,
+        sellingPrice: 2399.99,
         stock: 15
       },
       {
         name: "Wireless Gaming Mouse",
         sku: "WGM-002",
         category: "Electronics",
-        purchasePrice: "79.99",
-        sellingPrice: "99.99",
+        purchasePrice: 79.99,
+        sellingPrice: 99.99,
         stock: 3
       },
       {
         name: "Organic Cotton T-Shirt",
         sku: "OCT-003",
         category: "Clothing",
-        purchasePrice: "14.99",
-        sellingPrice: "24.99",
+        purchasePrice: 14.99,
+        sellingPrice: 24.99,
         stock: 8
       },
       {
         name: "Yoga Mat Premium",
         sku: "YMP-004",
         category: "Sports",
-        purchasePrice: "29.99",
-        sellingPrice: "49.99",
+        purchasePrice: 29.99,
+        sellingPrice: 49.99,
         stock: 2
       },
       {
         name: "Coffee Maker Deluxe",
         sku: "CMD-005",
         category: "Home & Garden",
-        purchasePrice: "89.99",
-        sellingPrice: "129.99",
+        purchasePrice: 89.99,
+        sellingPrice: 129.99,
         stock: 12
       },
       {
         name: "JavaScript Programming Guide",
         sku: "JSG-006",
         category: "Books",
-        purchasePrice: "19.99",
-        sellingPrice: "39.99",
+        purchasePrice: 19.99,
+        sellingPrice: 39.99,
         stock: 0
       }
     ];
